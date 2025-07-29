@@ -23,32 +23,92 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // SharedPreferences (tercih ettiğimiz adı "prefs")
+        // SharedPreferences
         val sharedPref = getSharedPreferences("prefs", Context.MODE_PRIVATE)
-
-        // Oturum var mı kontrol et
-        val loggedIn = sharedPref.getBoolean("loggedIn", false)
 
         setContent {
             ONCU_MobilTheme {
-                if (loggedIn) {
-                    HomeScreen(
-                        onLogout = {
-                            sharedPref.edit().putBoolean("loggedIn", false).apply()
-                            // yeniden compose tetiklenmeli, bunun için State kullanılabilir
-                            // burada simplest haliyle MainActivity'yi yeniden başlatabilirsin
-                            recreate()
-                        }
-                    )
-                } else {
-                    LoginScreen(
-                        sharedPref = sharedPref,
-                        onLoginSuccess = {
-                            recreate() // Giriş başarılıysa aktiviteyi yeniden başlat
-                        }
-                    )
-                }
+                AppNavigation(sharedPref = sharedPref)
             }
+        }
+    }
+}
+
+@Composable
+fun AppNavigation(sharedPref: android.content.SharedPreferences) {
+    var currentScreen by remember { mutableStateOf("login") }
+    var isLoggedIn by remember {
+        mutableStateOf(sharedPref.getBoolean("loggedIn", false))
+    }
+
+    // Login durumuna göre başlangıç ekranını belirle
+    LaunchedEffect(isLoggedIn) {
+        currentScreen = if (isLoggedIn) "formList" else "login"
+    }
+
+    when (currentScreen) {
+        "login" -> {
+            LoginScreen(
+                sharedPref = sharedPref,
+                onLoginSuccess = {
+                    isLoggedIn = true
+                    currentScreen = "formList"
+                }
+            )
+        }
+
+        "formList" -> {
+            FormListScreen(
+                onFormSelected = { formName ->
+                    when (formName) {
+                        "Sıcak Dolum Hattı Paketleme Proses Kontrol Formu" -> {
+                            currentScreen = "sdhkf"
+                        }
+                        "Anket Formu" -> {
+                            // Diğer formlar için navigation ekleyebilirsiniz
+                            // currentScreen = "anket"
+                        }
+                        "Geri Bildirim" -> {
+                            // Diğer formlar için navigation ekleyebilirsiniz
+                            // currentScreen = "geriBildirim"
+                        }
+                    }
+                },
+                onLogout = {
+                    sharedPref.edit().putBoolean("loggedIn", false).apply()
+                    isLoggedIn = false
+                    currentScreen = "login"
+                }
+            )
+        }
+
+        "sdhkf" -> {
+            SDHKF(
+                onBack = {
+                    currentScreen = "formList"
+                }
+            )
+        }
+
+        // Diğer formlar için case'ler buraya eklenebilir
+        // "anket" -> { AnketFormu(onBack = { currentScreen = "formList" }) }
+        // "geriBildirim" -> { GeriBildirimFormu(onBack = { currentScreen = "formList" }) }
+    }
+
+    // Geri tuşu kontrolü
+    BackHandler(enabled = currentScreen != "login") {
+        when (currentScreen) {
+            "formList" -> {
+                // Form listesindeyken geri tuşuna basılırsa çıkış yap
+                sharedPref.edit().putBoolean("loggedIn", false).apply()
+                isLoggedIn = false
+                currentScreen = "login"
+            }
+            "sdhkf" -> {
+                // Form sayfasındayken geri tuşuna basılırsa form listesine dön
+                currentScreen = "formList"
+            }
+            // Diğer sayfalar için de benzer kontroller eklenebilir
         }
     }
 }
@@ -59,8 +119,7 @@ fun LoginScreen(sharedPref: android.content.SharedPreferences, onLoginSuccess: (
     var password by remember { mutableStateOf("") }
     var rememberMe by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    val context = LocalContext.current
+    var isLoading by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -75,21 +134,29 @@ fun LoginScreen(sharedPref: android.content.SharedPreferences, onLoginSuccess: (
 
         OutlinedTextField(
             value = username,
-            onValueChange = { username = it },
+            onValueChange = {
+                username = it
+                errorMessage = null // Hata mesajını temizle
+            },
             label = { Text("Kullanıcı Adı") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = {
+                password = it
+                errorMessage = null // Hata mesajını temizle
+            },
             label = { Text("Şifre") },
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -97,7 +164,8 @@ fun LoginScreen(sharedPref: android.content.SharedPreferences, onLoginSuccess: (
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = rememberMe,
-                onCheckedChange = { rememberMe = it }
+                onCheckedChange = { rememberMe = it },
+                enabled = !isLoading
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = "Beni Hatırla")
@@ -107,43 +175,40 @@ fun LoginScreen(sharedPref: android.content.SharedPreferences, onLoginSuccess: (
 
         Button(
             onClick = {
-                // Burada basit bir doğrulama yapalım (gerçek projede API ile kontrol edilir)
-                if (username == "admin" && password == "1234") {
+                isLoading = true
+                // Basit doğrulama
+                if (username.trim() == "admin" && password == "1234") {
+                    // Başarılı giriş
+                    sharedPref.edit().putBoolean("loggedIn", true).apply()
                     if (rememberMe) {
-                        sharedPref.edit().putBoolean("loggedIn", true).apply()
+                        sharedPref.edit().putBoolean("rememberMe", true).apply()
                     } else {
-                        sharedPref.edit().putBoolean("loggedIn", false).apply()
+                        sharedPref.edit().putBoolean("rememberMe", false).apply()
                     }
                     errorMessage = null
+                    isLoading = false
                     onLoginSuccess()
                 } else {
                     errorMessage = "Kullanıcı adı veya şifre yanlış"
+                    isLoading = false
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
         ) {
-            Text("Giriş")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Giriş")
+            }
         }
 
         errorMessage?.let {
             Spacer(modifier = Modifier.height(12.dp))
             Text(text = it, color = MaterialTheme.colorScheme.error)
-        }
-    }
-}
-
-@Composable
-fun HomeScreen(onLogout: () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "Hoşgeldiniz!", style = MaterialTheme.typography.headlineMedium)
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onLogout) {
-                Text("Çıkış Yap")
-            }
         }
     }
 }
