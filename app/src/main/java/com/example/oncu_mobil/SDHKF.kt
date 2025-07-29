@@ -120,7 +120,6 @@ fun SDHKF(onBack: () -> Unit) {
 
         // Temizle butonu ekle
         Spacer(modifier = Modifier.height(16.dp))
-
         OutlinedButton(
             onClick = {
                 clearFormData(context)

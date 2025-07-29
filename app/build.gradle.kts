@@ -52,6 +52,7 @@ dependencies {
 
     // Eklenen kısım: Material Design kütüphanesi
     implementation("com.google.android.material:material:1.12.0")
+    implementation("androidx.compose.material:material-icons-extended")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

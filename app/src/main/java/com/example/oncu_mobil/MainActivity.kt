@@ -16,6 +16,11 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.oncu_mobil.ui.theme.ONCU_MobilTheme
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.Image
 
 class MainActivity : ComponentActivity() {
 
@@ -132,6 +137,17 @@ fun LoginScreen(sharedPref: android.content.SharedPreferences, onLoginSuccess: (
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // LOGO BURADA
+        Image(
+            painter = painterResource(id = R.drawable.logo),
+            contentDescription = "Logo",
+            modifier = Modifier
+                .height(120.dp)
+                .width(120.dp)
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         OutlinedTextField(
             value = username,
             onValueChange = {
@@ -141,7 +157,11 @@ fun LoginScreen(sharedPref: android.content.SharedPreferences, onLoginSuccess: (
             label = { Text("Kullanıcı Adı") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
+            enabled = !isLoading,
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -156,7 +176,11 @@ fun LoginScreen(sharedPref: android.content.SharedPreferences, onLoginSuccess: (
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading
+            enabled = !isLoading,
+            colors = TextFieldDefaults.colors(
+                focusedTextColor = Color.Black,
+                unfocusedTextColor = Color.Black
+            )
         )
 
         Spacer(modifier = Modifier.height(8.dp))
